@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Registro Rápido em Sala de Aula — MVP + Supabase</title>
+<style>
+  :root{
+    --bg:#f4f6f8; --card:#fff; --ink:#1f2937; --muted:#6b7280;
+    --line:#e5e7eb; --accent:#2563eb; --accent-dark:#1d4ed8;
+    --ok:#16a34a; --danger:#dc2626; --warn:#d97706;
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:var(--card);border-bottom:1px solid var(--line);padding:12px 16px;position:sticky;top:0;z-index:10}
+  header h1{font-size:18px;margin:0}
+  header p{margin:2px 0 0;font-size:13px;color:var(--muted)}
+  .bar{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:end}
+  .field{display:flex;flex-direction:column;gap:4px;font-size:13px}
+  .field label{font-weight:600;color:#374151}
+  .field input,.field select{padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:#fff;min-width:160px}
+  button{cursor:pointer;border:0;border-radius:8px;font-size:14px;padding:10px 14px}
+  .btn-primary{background:var(--accent);color:#fff;font-weight:700}
+  .btn-primary:hover{background:var(--accent-dark)}
+  .btn-ghost{background:#eef2ff;color:var(--accent-dark);font-weight:600}
+  .btn-danger-ghost{background:#fef2f2;color:var(--danger);font-weight:600;border:1px solid #fecaca}
+  .btn-dark{background:#111827;color:#fff;font-weight:600}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .status{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:6px 10px;border-radius:999px;background:#eef2ff}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--warn)}
+  .dot.on{background:var(--ok)} .dot.off{background:var(--danger)}
+  main{display:grid;grid-template-columns:300px 1fr 340px;gap:14px;padding:14px 16px;max-width:1400px;margin:0 auto}
+  @media(max-width:1050px){main{grid-template-columns:1fr 1fr}}
+  @media(max-width:720px){main{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+  .card h2{font-size:15px;margin:0 0 4px}
+  .card .sub{font-size:13px;color:var(--muted);margin:0 0 10px}
+  #busca{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:14px}
+  #listaEstudantes{list-style:none;margin:10px 0 0;padding:0;max-height:60vh;overflow:auto;display:flex;flex-direction:column;gap:6px}
+  #listaEstudantes li button{width:100%;text-align:left;background:#f9fafb;border:1px solid var(--line);padding:11px 12px;font-size:14px;border-radius:10px}
+  #listaEstudantes li button small{display:block;color:var(--muted);font-size:12px}
+  #listaEstudantes li button.selecionado{background:var(--accent);border-color:var(--accent);color:#fff}
+  #listaEstudantes li button.selecionado small{color:#dbeafe}
+  .sel-atual{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px;font-size:14px;margin-bottom:10px}
+  .grupo{margin-bottom:14px}
+  .grupo h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 8px}
+  .grid-sit{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media(max-width:500px){.grid-sit{grid-template-columns:1fr}}
+  .sit{background:#f9fafb;border:1px solid var(--line);border-left:5px solid var(--accent);text-align:left;padding:12px;font-size:14px;line-height:1.25;border-radius:10px;min-height:56px}
+  .sit:hover{background:#eff6ff;border-color:var(--accent)}
+  .sit.cat-atividades{border-left-color:#2563eb}
+  .sit.cat-comportamento{border-left-color:#d97706}
+  .sit.cat-laboratorio{border-left-color:#059669}
+  .sit.cat-docente{border-left-color:#dc2626}
+  #observacao{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:14px}
+  #historico{list-style:none;margin:10px 0;padding:0;display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow:auto}
+  #historico li{background:#f9fafb;border:1px solid var(--line);border-radius:10px;padding:9px 10px;font-size:13.5px;display:flex;gap:8px;justify-content:space-between;align-items:flex-start}
+  #historico li .hora{font-weight:800;color:#374151;white-space:nowrap}
+  #historico li.pending{border-style:dashed;background:#fffbeb}
+  .exc{background:none;color:var(--danger);padding:4px 8px;font-size:13px}
+  #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:#111827;color:#fff;padding:12px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:50;max-width:90vw}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  details.config{margin-top:10px;font-size:13px}
+  details.config summary{cursor:pointer;font-weight:700}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .count{font-size:13px;color:var(--muted)}
+  /* Área de impressão = relatório PDF */
+  #relatorio{display:none}
+  @media print{
+    header,main,#toast,.no-print{display:none !important}
+    #relatorio{display:block !important;font-family:Arial,sans-serif;color:#111}
+    #relatorio h1{font-size:20px;margin:0}
+    #relatorio table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}
+    #relatorio th,#relatorio td{border:1px solid #999;padding:6px;text-align:left}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Registro Rápido em Sala de Aula</h1>
+  <p>Fluxo: <strong>selecionar estudante → selecionar situação → registrar</strong> · MVP + Supabase</p>
+  <div class="bar">
+    <div class="field">
+      <label for="turmaSelect">Turma</label>
+      <select id="turmaSelect"><option value="">Carregando…</option></select>
+    </div>
+    <div class="field">
+      <label for="docente">Docente</label>
+      <select id="docente">
+        <option>Luciano</option>
+        <option>Gabriel</option>
+        <option>Lucas</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="disciplina">Disciplina</label>
+      <select id="disciplina">
+        <option>Programação Back-end</option>
+        <option>Análise e projeto de sistemas</option>
+        <option>Programação Mobile</option>
+        <option>Banco de dados II</option>
+        <option>Ciência de Dados</option>
+        <option>Programação Front-end</option>
+        <option>Introdução a computação</option>
+        <option>Computação Gráfica</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="dataAula">Data</label>
+      <input id="dataAula" type="date" />
+    </div>
+    <button class="btn-primary" id="btnAula">Iniciar aula</button>
+    <button class="btn-ghost" id="btnSync" title="Tentar enviar registros pendentes">Sincronizar pendentes (<span id="pendCount">0</span>)</button>
+    <span class="status"><span class="dot" id="dot"></span><span id="statusTxt">verificando…</span></span>
+  </div>
+  <details class="config">
+    <summary>⚙️ Configurar Supabase (URL + anon key)</summary>
+    <p style="color:#4b5563">Cole aqui a URL e a <strong>anon/public key</strong> do seu projeto. Nunca use a <code>service_role</code> no front-end. Também é possível editar <code>SUPABASE_URL</code> / <code>SUPABASE_ANON_KEY</code> direto no código.</p>
+    <div class="bar">
+      <div class="field"><label>Supabase URL</label><input id="cfgUrl" placeholder="https://xyzcompany.supabase.co" style="min-width:280px" /></div>
+      <div class="field"><label>Supabase anon key</label><input id="cfgKey" placeholder="eyJ…" style="min-width:280px" /></div>
+      <button class="btn-dark" id="btnSalvarCfg">Salvar e recarregar dados</button>
+    </div>
+  </details>
+</header>
+
+<main>
+  <!-- COLUNA 1 -->
+  <section class="card">
+    <h2>1 · Estudante</h2>
+    <p class="sub">Busque e toque no nome. <span class="count" id="contEst"></span></p>
+    <input id="busca" placeholder="Buscar estudante…" autocomplete="off" />
+    <ul id="listaEstudantes"></ul>
+  </section>
+
+  <!-- COLUNA 2 -->
+  <section class="card">
+    <h2>2 · Situação</h2>
+    <p class="sub">Toque para registrar imediatamente no estudante selecionado.</p>
+    <div class="sel-atual" id="selAtual">Nenhum estudante selecionado.</div>
+    <div class="field" style="margin-bottom:10px">
+      <label for="observacao">Observação (opcional)</label>
+      <input id="observacao" placeholder="Ex.: durante a explicação do exercício 3" />
+    </div>
+    <div id="situacoes"></div>
+  </section>
+
+  <!-- COLUNA 3 -->
+  <section class="card">
+    <h2>3 · Histórico da aula</h2>
+    <p class="sub" id="infoAula">Nenhuma aula iniciada.</p>
+    <ul id="historico"></ul>
+    <div class="row no-print">
+      <button class="btn-dark" id="btnPDF">Gerar relatório PDF</button>
+      <button class="btn-danger-ghost" id="btnFinalizar">Finalizar aula</button>
+    </div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<!-- Relatório para impressão/PDF -->
+<div id="relatorio"></div>
+
+<script>
+/* ============================================================
+   CONFIGURAÇÃO — preencha aqui OU pela caixinha ⚙️ no topo.
+   ============================================================ */
+const SUPABASE_URL = 'SUA_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'SUA_SUPABASE_ANON_KEY';
+
+/* Dados reais do curso — usados no modo local e como fallback */
+const DOCENTES = ['Luciano','Gabriel','Lucas'];
+const DISCIPLINAS = ['Programação Back-end','Análise e projeto de sistemas','Programação Mobile','Banco de dados II','Ciência de Dados','Programação Front-end','Introdução a computação','Computação Gráfica'];
+
+const state = {
+  cfg: {
+    url: localStorage.getItem('supa_url') || (SUPABASE_URL.startsWith('http') ? SUPABASE_URL : ''),
+    key: localStorage.getItem('supa_key') || (SUPABASE_ANON_KEY.startsWith('eyJ') ? SUPABASE_ANON_KEY : '')
+  },
+  onlineSupa: false,
+  turmas: [], estudantes: [], situacoes: [],
+  turmaId: null, aulaId: null, aulaInfo: null,
+  estudanteId: null, registros: []
+};
+
+/* ============ Camada de acesso a dados (único ponto Supabase) ============ */
+function supaHeaders(extra = {}) {
+  return Object.assign({
+    'apikey': state.cfg.key,
+    'Authorization': 'Bearer ' + state.cfg.key,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  }, extra);
+}
+function supaOk() { return !!(state.cfg.url && state.cfg.key); }
+async function supaGet(path) {
+  const r = await fetch(state.cfg.url + '/rest/v1/' + path, { headers: supaHeaders() });
+  if (!r.ok) throw new Error('Supabase GET ' + r.status);
+  return r.json();
+}
+async function supaPost(path, body) {
+  const r = await fetch(state.cfg.url + '/rest/v1/' + path, {
+    method: 'POST', headers: supaHeaders(), body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('Supabase POST ' + r.status + ' ' + (await r.text()).slice(0,300));
+  return r.json();
+}
+async function supaDelete(path) {
+  const r = await fetch(state.cfg.url + '/rest/v1/' + path, { method: 'DELETE', headers: supaHeaders({ Prefer: 'return=minimal' }) });
+  if (!r.ok) throw new Error('Supabase DELETE ' + r.status);
+}
+async function supaPatch(path, body) {
+  const r = await fetch(state.cfg.url + '/rest/v1/' + path, { method: 'PATCH', headers: supaHeaders({ Prefer: 'return=minimal' }), body: JSON.stringify(body) });
+  if (!r.ok) throw new Error('Supabase PATCH ' + r.status);
+}
+
+async function buscarTurmas() {
+  if (!supaOk()) return seedTurmas();
+  return supaGet('turmas?select=id,nome,ano&order=nome');
+}
+async function buscarEstudantes(turmaId) {
+  if (!supaOk()) return seedEstudantes(turmaId);
+  return supaGet(`estudantes?select=id,nome,turma_id&turma_id=eq.${turmaId}&ativo=eq.true&order=nome`);
+}
+async function buscarSituacoes() {
+  if (!supaOk()) return seedSituacoes();
+  return supaGet('situacoes?select=id,descricao,categoria,ordem&ativo=eq.true&order=ordem');
+}
+async function criarAula(turma_id, disciplina, data, professor) {
+  if (!supaOk()) {
+    return { id: 'local-' + Date.now(), turma_id, disciplina, data, professor: professor||'', inicio: new Date().toISOString(), local: true };
+  }
+  // Tenta com coluna `professor`; se o banco ainda não tem a migração, cai no fallback sem ela.
+  try {
+    const rows = await supaPost('aulas', { turma_id, disciplina, data, professor: professor||null, inicio: new Date().toISOString() });
+    return rows[0];
+  } catch (e) {
+    if (String(e.message).includes('professor')) {
+      const rows = await supaPost('aulas', { turma_id, disciplina, data, inicio: new Date().toISOString() });
+      rows[0].professor = professor||'';
+      return rows[0];
+    }
+    throw e;
+  }
+}
+async function registrarOcorrencia({ aula_id, estudante_id, situacao_id, observacao }) {
+  const payload = { aula_id, estudante_id, situacao_id, observacao: observacao || null };
+  // Modo local ou aula local → salva só local
+  if (!supaOk() || String(aula_id).startsWith('local-')) {
+    const rec = Object.assign({ id: 'local-' + Date.now() + Math.floor(Math.random()*999), registrado_em: new Date().toISOString(), _pending: !supaOk() ? false : true }, payload);
+    filaLocalPush(rec);
+    return rec;
+  }
+  try {
+    const rows = await supaPost('registros', payload);
+    return rows[0];
+  } catch (e) {
+    // Falhou → guarda para sincronizar depois
+    const rec = Object.assign({ id: 'local-' + Date.now(), registrado_em: new Date().toISOString(), _pending: true }, payload);
+    filaLocalPush(rec);
+    throw e;
+  }
+}
+async function buscarRegistrosDaAula(aulaId) {
+  if (!supaOk() || String(aulaId).startsWith('local-')) return filaLocalPorAula(aulaId);
+  const rows = await supaGet(`registros?select=id,observacao,registrado_em,estudante_id,situacao_id,aula_id& aula_id=eq.${aulaId}&order=registrado_em`);
+  return rows.concat(filaLocalPorAula(aulaId));
+}
+async function excluirRegistro(id) {
+  filaLocalRemove(id);
+  if (!supaOk() || String(id).startsWith('local-')) return;
+  await supaDelete(`registros?id=eq.${id}`);
+}
+async function finalizarAula(aulaId) {
+  if (!supaOk() || String(aulaId).startsWith('local-')) return;
+  await supaPatch(`aulas?id=eq.${aulaId}`, { fim: new Date().toISOString() });
+}
+
+/* ============ Fallback local / offline ============ */
+function seedSituacoes() {
+  const S = [
+    ['Atividades','Não realizou a atividade em sala',1],['Atividades','Não realizou a atividade no Classroom',2],
+    ['Atividades','Estava fora da atividade proposta',3],['Atividades','Não cumpriu o prazo da atividade',4],
+    ['Comportamento','Excesso de conversa',5],['Comportamento','Conversa em tom de voz alto, prejudicando a aula',6],
+    ['Comportamento','Brincadeiras inadequadas com colegas',7],['Comportamento','Uso constante do celular durante a aula',8],
+    ['Comportamento','Saiu da sala sem autorização',9],['Comportamento','Saiu da sala e não retornou',10],
+    ['Comportamento','Não foi ao laboratório quando solicitado',11],
+    ['Laboratório e equipamentos','Falta de zelo com o laboratório',12],['Laboratório e equipamentos','Falta de cuidado com os equipamentos',13],
+    ['Relação com o docente','Provocação durante intervenção do professor',14],['Relação com o docente','Elevou o tom de voz com o professor',15]
+  ];
+  return S.map((s,i)=>({ id:'seed-sit-'+(i+1), descricao:s[1], categoria:s[0], ordem:s[2] }));
+}
+function seedTurmas() {
+  return [{ id:'seed-ds3', nome:'DS3', ano:2026 }, { id:'seed-ds2', nome:'DS2', ano:2026 }];
+}
+const EST_DS3 = ['ADRIAN KURTS PEREIRA DE OLIVEIRA','ANDRE ROBERTO MARQUES GUIMARAES JUNIOR','CARLA KATHIELY DOS SANTOS SOUZA','DÂMARIS MODESTO RIBEIRO','DANIEL ARAUJO DOS SANTOS','DANIEL AUGUSTO MACHADO MARTINS','DANIEL CARVALHO DE PAULO','DANIELY FERNANDES TIXILISKI','DAVI SOUZA DO CARMO','DÉRICK RODOLFO LAGOS TORRES','EDUARDO SZCREPANSKI DE ALMEIDA NIZ','ENZO DOS SANTOS SERAFIM','FELIPE MENDES ALVES','GIOVANNY DA SILVA CABRAL','GUILHERME ALEXANDRE BONAFINI PEREIRA','HENZO HENRIQUE SANTOS PINTO','JHONATAN ALVES BRONDANI','JHONNY LEENDER GONCALVES ALVES','JOÃO PEDRO HENRIQUE BERNARDO','JÔNATAS SOUZA DA SILVA PEREIRA','JULIA ARTIGAS DE CASTRO','JÚLIA DA SILVA VIEIRA','KARINE RODRIGUES DE OLIVEIRA','LARA AMANDA LOPES DO ROSARIO','LARISSA NAGEL ALVES','LETICIA CANDIDO MENDES','LUAN FELIPE RUSSI MACHADO','LUAN GABRIEL DE LIMA BORGES','LUCAS MARINHO DE FREITAS','LUCAS MATEUS DOMINICO','LUKAS EDUARDO ZEMZISKY SIMPLICIO DA SILVA','MELANY NICOLE COSTA','NATHAN RAMOS PINHEIRO DA SILVA','NÍVEA SUZANA DE VRIJ XAVIER','PAULO AFONSO NEUMANN BAPTISTEL ALVES','PIERRE PEREIRA WAZONKOSKI DELPHIM','STEFFANY ELOISE DE SOUZA DIAS','TIAGO MAHMOUD SAID'];
+const EST_DS2 = ['AILTON CORADASSI VIEIRA','ANA BEATRIZ PINTO MOREIRA','ANDRE PYETRO GOMES BATISTA','ANDRIELLYN MARTINS OLIVEIRA DOS SANTOS','ANNA BIATRICE PONTES SPANIER POLI','ARTHUR FERNANDES RAMOS','BENICIO DOS SANTOS DA SILVA','DÃ GABRIEL SILVA VIDAL','ELCIO CRUZ DA VEIGA','ENTHONY GABRIEL ALVES DOS SANTOS','FELIPE FELIX MENDES','GABRIEL GIACOMIN SALVADOR','GIOVANA JASCESKI CAVALHEIRO','HENRY MATSUDA','JEAN VICTOR LAGOS MARCIO','JOÃO HENRIQUE BARÃO NASCIMENTO','JOAO PEDRO SANTOS PADILHA DE ANDRADE','JONAS AUGUSTO TREFELES DOS SANTOS','KAUA HENRIQUE FOSSILE RAMOS','LUAN RAFAEL SOUZA DE PAULA','LUCAS PAREDES DE CAMPOS','MARIA EDUARDA RODRIGUES COSTA','MARIA FERNANDA DE GOIS FERREIRA FONTES','MICKAEL VIANA DE CASTRO','MIGUEL DO CARMO LUZ','MIGUEL NASCIMENTO SILVA','MIRELLA FERNANDA BUENO SIQUEIRA','NATHAN CEZAR ALVES SANCHES','NYCOLAS ANDRÉ MENDES SANTANA','PAULO CESAR AMORIM FILHO','RAFAEL NASCIMENTO SILVA','RENATO YUDY AGOSTINHO DE ANDRADE','RUAN PHELIPE BARCELOS ELESIS','RUBYA VITORIA GONCALVES','TEODORO KREMER SERAFIM','THOMAS FELIPE OLIVEIRA THOME','VICTÓRIA CRISTINE DOS SANTOS','VINICIUS SANTANA DOS SANTOS','ALESSANDRO SANTIAGO DOS SANTOS SILVA JUNIOR'];
+function seedEstudantes(turmaId) {
+  const turmaNome = (state.turmas.find(t=>t.id===turmaId)||{}).nome || '';
+  const isDS2 = turmaId==='seed-ds2' || turmaNome==='DS2';
+  const lista = isDS2 ? EST_DS2 : EST_DS3;
+  return lista.map((n,i)=>({ id:`${turmaId}-e${i+1}`, nome: n, turma_id: turmaId }));
+}
+function filaLocalAll() { try { return JSON.parse(localStorage.getItem('rr_registros')||'[]'); } catch { return []; } }
+function filaLocalSave(a) { localStorage.setItem('rr_registros', JSON.stringify(a)); }
+function filaLocalPush(rec) { const a = filaLocalAll(); a.push(rec); filaLocalSave(a); }
+function filaLocalRemove(id) { filaLocalSave(filaLocalAll().filter(r=>r.id!==id)); }
+function filaLocalPorAula(aulaId) { return filaLocalAll().filter(r=>r.aula_id===aulaId); }
+function filaPendentes() { return filaLocalAll().filter(r=>r._pending); }
+
+/* ============ UI ============ */
+const $ = id => document.getElementById(id);
+const turmaSelect=$('turmaSelect'), listaEst=$('listaEstudantes'), busca=$('busca'),
+  sitBox=$('situacoes'), hist=$('historico'), selAtual=$('selAtual');
+
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1800); }
+function fmtHora(iso){ try{ return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}catch{return '--:--';} }
+function nomeEst(id){ return (state.estudantes.find(e=>e.id===id)||{}).nome || '—'; }
+function descSit(id){ return (state.situacoes.find(s=>s.id===id)||{}).descricao || '—'; }
+function setStatus(){
+  const d=$('dot'), t=$('statusTxt');
+  $('pendCount').textContent = filaPendentes().length;
+  if(!supaOk()){ d.className='dot off'; t.textContent='modo local (configure o Supabase)'; state.onlineSupa=false; return; }
+  d.className='dot '+(state.onlineSupa?'on':'off');
+  t.textContent= state.onlineSupa ? 'Supabase conectado' : 'Supabase configurado · sem conexão';
+}
+
+function renderEstudantes(){
+  const q = busca.value.trim().toLowerCase();
+  const list = state.estudantes.filter(e=>e.nome.toLowerCase().includes(q));
+  $('contEst').textContent = `(${list.length}/${state.estudantes.length})`;
+  listaEst.innerHTML='';
+  list.forEach(e=>{
+    const li=document.createElement('li');
+    const b=document.createElement('button');
+    b.innerHTML = `${e.nome}<small>toque para selecionar</small>`;
+    if(e.id===state.estudanteId) b.classList.add('selecionado');
+    b.onclick=()=>{ state.estudanteId=e.id; selAtual.innerHTML=`<strong>Selecionado:</strong> ${e.nome}`; renderEstudantes(); };
+    li.appendChild(b); listaEst.appendChild(li);
+  });
+}
+function renderSituacoes(){
+  const grupos={};
+  state.situacoes.forEach(s=>{ (grupos[s.categoria]=grupos[s.categoria]||[]).push(s); });
+  sitBox.innerHTML='';
+  Object.keys(grupos).forEach(cat=>{
+    const div=document.createElement('div'); div.className='grupo';
+    div.innerHTML=`<h3>${cat}</h3>`;
+    const g=document.createElement('div'); g.className='grid-sit';
+    grupos[cat].forEach(s=>{
+      const b=document.createElement('button'); b.className='sit cat-'+catSlug(cat); b.textContent=s.descricao;
+      b.onclick=()=>registrar(s.id);
+      g.appendChild(b);
+    });
+    div.appendChild(g); sitBox.appendChild(div);
+  });
+}
+function catSlug(c){ c=(c||'').toLowerCase(); if(c.startsWith('ativ'))return 'atividades'; if(c.startsWith('comp'))return 'comportamento'; if(c.startsWith('lab'))return 'laboratorio'; return 'docente'; }
+
+function renderHistorico(){
+  hist.innerHTML='';
+  const regs=[...state.registros].sort((a,b)=>new Date(b.registrado_em)-new Date(a.registrado_em));
+  if(!regs.length){ hist.innerHTML='<li><span style="color:#6b7280">Nenhum registro nesta aula ainda.</span></li>'; return; }
+  regs.forEach(r=>{
+    const li=document.createElement('li');
+    if(r._pending) li.classList.add('pending');
+    li.innerHTML=`<span><span class="hora">${fmtHora(r.registrado_em)}</span> — <strong>${nomeEst(r.estudante_id)}</strong> — ${descSit(r.situacao_id)}${r.observacao?` <em>(${r.observacao})</em>`:''}${r._pending?' <strong>· pendente</strong>':''}</span>`;
+    const x=document.createElement('button'); x.className='exc'; x.textContent='excluir'; x.title='Excluir registro';
+    x.onclick=async()=>{ if(!confirm('Excluir este registro?'))return; await excluirRegistro(r.id); state.registros=state.registros.filter(v=>v.id!==r.id); renderHistorico(); toast('Registro excluído'); };
+    li.appendChild(x); hist.appendChild(li);
+  });
+}
+
+async function registrar(situacaoId){
+  if(!state.aulaId){ toast('Inicie a aula primeiro (botão “Iniciar aula”).'); return; }
+  if(!state.estudanteId){ toast('Selecione um estudante primeiro.'); return; }
+  const obs=$('observacao').value.trim();
+  // Otimista: mostra na hora (velocidade de registro)
+  const temp={ id:'local-'+Date.now(), aula_id:state.aulaId, estudante_id:state.estudanteId, situacao_id:situacaoId, observacao:obs||null, registrado_em:new Date().toISOString(), _pending:false };
+  try{
+    const salvo=await registrarOcorrencia({ aula_id:state.aulaId, estudante_id:state.estudanteId, situacao_id:situacaoId, observacao:obs||null });
+    // se caiu no fallback local dentro de registrarOcorrencia, ela já persistiu; evita duplicar:
+    if(String(salvo.id).startsWith('local-') && String(state.aulaId).startsWith('local-')){ state.registros.push(salvo); }
+    else if(salvo._pending){ state.registros.push(salvo); toast('Sem conexão — salvo local, será sincronizado'); }
+    else { state.registros.push(salvo); toast(`Registrado ${fmtHora(salvo.registrado_em)} ✓`); }
+  }catch(e){
+    state.registros.push(Object.assign(temp,{_pending:true}));
+    toast('Sem conexão — salvo local, será sincronizado');
+  }
+  $('observacao').value='';
+  renderHistorico(); setStatus();
+}
+
+async function carregarTudo(){
+  try{
+    state.turmas=await buscarTurmas();
+    state.situacoes=await buscarSituacoes();
+    if(supaOk()){ // testa conexão de verdade
+      await supaGet('situacoes?select=id&limit=1'); state.onlineSupa=true;
+    }
+  }catch(e){ state.onlineSupa=false; if(!state.turmas.length) state.turmas=seedTurmas(); if(!state.situacoes.length) state.situacoes=seedSituacoes(); }
+  turmaSelect.innerHTML='';
+  state.turmas.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.nome; turmaSelect.appendChild(o); });
+  state.turmaId=turmaSelect.value||state.turmas[0]?.id||null;
+  await trocarTurma();
+  renderSituacoes(); setStatus();
+}
+async function trocarTurma(){
+  if(!state.turmaId) return;
+  try{ state.estudantes=await buscarEstudantes(state.turmaId); }
+  catch{ state.estudantes=seedEstudantes(state.turmaId); }
+  state.estudanteId=null; selAtual.textContent='Nenhum estudante selecionado.';
+  renderEstudantes();
+}
+
+async function sincronizar(){
+  const pend=filaPendentes();
+  if(!pend.length){ toast('Nada pendente'); return; }
+  if(!supaOk() || String(state.aulaId||'').startsWith('local-')){ toast('Crie uma aula no Supabase para sincronizar'); return; }
+  let ok=0;
+  for(const p of pend){
+    try{
+      const rows=await supaPost('registros',{ aula_id:p.aula_id, estudante_id:p.estudante_id, situacao_id:p.situacao_id, observacao:p.observacao });
+      filaLocalRemove(p.id);
+      const i=state.registros.findIndex(r=>r.id===p.id); if(i>=0) state.registros[i]=rows[0];
+      ok++;
+    }catch(e){ /* mantém na fila */ }
+  }
+  renderHistorico(); setStatus();
+  toast(ok? `${ok} registro(s) sincronizado(s)` : 'Ainda sem conexão');
+}
+
+function gerarPDF(){
+  if(!state.aulaId){ toast('Inicie uma aula primeiro'); return; }
+  const turma=(state.turmas.find(t=>t.id===state.turmaId)||{}).nome||'—';
+  const regs=[...state.registros].sort((a,b)=>new Date(a.registrado_em)-new Date(b.registrado_em));
+  const dataFmt=state.aulaInfo?.data ? new Date(state.aulaInfo.data+'T12:00:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+  const disc=state.aulaInfo?.disciplina||$('disciplina').value;
+  const prof=state.aulaInfo?.professor||$('docente').value||'—';
+  let linhas=regs.map(r=>`<tr><td>${fmtHora(r.registrado_em)}</td><td>${nomeEst(r.estudante_id)}</td><td>${descSit(r.situacao_id)}</td><td>${r.observacao||''}</td></tr>`).join('')
+    || '<tr><td colspan="4">Nenhum registro.</td></tr>';
+  $('relatorio').innerHTML=`<h1>Relatório de aula — Registro Rápido</h1>
+    <p><strong>Data:</strong> ${dataFmt} &nbsp; <strong>Turma:</strong> ${turma} &nbsp; <strong>Disciplina:</strong> ${disc} &nbsp; <strong>Docente:</strong> ${prof} &nbsp; <strong>Aula ID:</strong> ${state.aulaId}</p>
+    <table><thead><tr><th>Horário</th><th>Estudante</th><th>Situação registrada</th><th>Observação</th></tr></thead><tbody>${linhas}</tbody></table>
+    <p>Total de registros: ${regs.length}. Gerado em ${new Date().toLocaleString('pt-BR')}.</p>`;
+  window.print(); // usuário escolhe "Salvar como PDF"
+}
+
+/* eventos */
+turmaSelect.onchange=()=>{ state.turmaId=turmaSelect.value; trocarTurma(); };
+busca.oninput=renderEstudantes;
+$('btnAula').onclick=async()=>{
+  if(!state.turmaId){ toast('Selecione a turma'); return; }
+  const btn=$('btnAula'); btn.disabled=true;
+  try{
+    const aula=await criarAula(state.turmaId, $('disciplina').value, $('dataAula').value||new Date().toISOString().slice(0,10), $('docente').value);
+    state.aulaId=aula.id; state.aulaInfo=aula; state.registros=[];
+    try{ state.registros=await buscarRegistrosDaAula(aula.id); }catch{ state.registros=filaLocalPorAula(aula.id); }
+    $('infoAula').textContent=`Aula ${aula.id.slice(0,8)} · ${$('docente').value} · ${$('disciplina').value} · ${$('dataAula').value||'hoje'}${aula.local?' · (local)':''}`;
+    toast(aula.local||!supaOk() ? 'Aula iniciada (modo local)' : 'Aula iniciada no Supabase');
+  }catch(e){ toast('Erro ao criar aula: '+e.message); }
+  btn.disabled=false; renderHistorico(); setStatus();
+};
+$('btnSync').onclick=sincronizar;
+$('btnPDF').onclick=gerarPDF;
+$('btnFinalizar').onclick=async()=>{
+  if(!state.aulaId) return;
+  if(!confirm('Finalizar aula? Os dados permanecem salvos (nada é apagado).'))return;
+  try{ await finalizarAula(state.aulaId); toast('Aula finalizada (dados preservados)'); }
+  catch(e){ toast('Aula encerrada localmente'); }
+  state.aulaId=null; state.aulaInfo=null; state.registros=[]; $('infoAula').textContent='Nenhuma aula iniciada.'; renderHistorico();
+};
+$('btnSalvarCfg').onclick=async()=>{
+  const u=$('cfgUrl').value.trim(), k=$('cfgKey').value.trim();
+  if(u) localStorage.setItem('supa_url',u); if(k) localStorage.setItem('supa_key',k);
+  state.cfg.url=u||state.cfg.url; state.cfg.key=k||state.cfg.key;
+  toast('Configuração salva — recarregando…'); await carregarTudo();
+};
+
+/* init */
+$('dataAula').value=new Date().toISOString().slice(0,10);
+if(state.cfg.url) $('cfgUrl').value=state.cfg.url;
+if(state.cfg.key) $('cfgKey').value=state.cfg.key;
+carregarTudo();
+</script>
+</body>
+</html>
