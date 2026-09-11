@@ -136,9 +136,9 @@
   </section>
 
   <!-- COLUNA 2 -->
-  <section class="card">
+  <section class="card" id="cardSituacoes">
     <h2>2 · Situação</h2>
-    <p class="sub">Toque para registrar imediatamente no estudante selecionado.</p>
+    <p class="sub" id="sitHint">Selecione um estudante ao lado para ver as situações.</p>
     <div class="sel-atual" id="selAtual">Nenhum estudante selecionado.</div>
     <div class="field" style="margin-bottom:10px">
       <label for="observacao">Observação (opcional)</label>
@@ -289,7 +289,8 @@ function seedSituacoes() {
     ['Comportamento','Saiu da sala sem autorização',9],['Comportamento','Saiu da sala e não retornou',10],
     ['Comportamento','Não foi ao laboratório quando solicitado',11],
     ['Laboratório e equipamentos','Falta de zelo com o laboratório',12],['Laboratório e equipamentos','Falta de cuidado com os equipamentos',13],
-    ['Relação com o docente','Provocação durante intervenção do professor',14],['Relação com o docente','Elevou o tom de voz com o professor',15]
+    ['Relação com o docente','Provocação durante intervenção do professor',14],['Relação com o docente','Elevou o tom de voz com o professor',15],
+    ['Outros','Outro (descrever na observação)',16]
   ];
   return S.map((s,i)=>({ id:'seed-sit-'+(i+1), descricao:s[1], categoria:s[0], ordem:s[2] }));
 }
@@ -338,7 +339,8 @@ function renderEstudantes(){
     const b=document.createElement('button');
     b.innerHTML = `${e.nome}<small>toque para selecionar</small>`;
     if(e.id===state.estudanteId) b.classList.add('selecionado');
-    b.onclick=()=>{ state.estudanteId=e.id; selAtual.innerHTML=`<strong>Selecionado:</strong> ${e.nome}`; renderEstudantes(); };
+    b.onclick=()=>{ state.estudanteId=e.id; selAtual.innerHTML=`<strong>Selecionado:</strong> ${e.nome}`; renderEstudantes(); renderSituacoes();
+      if(window.innerWidth<720){ document.getElementById('cardSituacoes').scrollIntoView({behavior:'smooth',block:'start'}); } };
     li.appendChild(b); listaEst.appendChild(li);
   });
 }
@@ -346,6 +348,13 @@ function renderSituacoes(){
   const grupos={};
   state.situacoes.forEach(s=>{ (grupos[s.categoria]=grupos[s.categoria]||[]).push(s); });
   sitBox.innerHTML='';
+  // Mobile: situações só aparecem após selecionar o estudante (evita rolagem).
+  if(!state.estudanteId){
+    $('sitHint').textContent='Selecione um estudante ao lado para ver as situações.';
+    sitBox.innerHTML='<p style="font-size:13.5px;color:var(--muted);margin:0">Nenhum estudante selecionado.</p>';
+    return;
+  }
+  $('sitHint').textContent='Toque para registrar imediatamente no estudante selecionado.';
   Object.keys(grupos).forEach(cat=>{
     const div=document.createElement('div'); div.className='grupo';
     div.innerHTML=`<h3>${cat}</h3>`;
@@ -359,6 +368,7 @@ function renderSituacoes(){
   });
 }
 function catSlug(c){ c=(c||'').toLowerCase(); if(c.startsWith('ativ'))return 'atividades'; if(c.startsWith('comp'))return 'comportamento'; if(c.startsWith('lab'))return 'laboratorio'; return 'docente'; }
+function isOutro(situacaoId){ return descSit(situacaoId).toLowerCase().startsWith('outro'); }
 
 function renderHistorico(){
   hist.innerHTML='';
@@ -378,6 +388,8 @@ async function registrar(situacaoId){
   if(!state.aulaId){ toast('Inicie a aula primeiro (botão “Iniciar aula”).'); return; }
   if(!state.estudanteId){ toast('Selecione um estudante primeiro.'); return; }
   const obs=$('observacao').value.trim();
+  if(isOutro(situacaoId) && !obs){ toast('“Outro” exige descrição na observação.'); $('observacao').focus(); return; }
+  situacaoId=await resolverSituacaoId(situacaoId);
   // Otimista: mostra na hora (velocidade de registro)
   const temp={ id:'local-'+Date.now(), aula_id:state.aulaId, estudante_id:state.estudanteId, situacao_id:situacaoId, observacao:obs||null, registrado_em:new Date().toISOString(), _pending:false };
   try{
@@ -394,6 +406,28 @@ async function registrar(situacaoId){
   renderHistorico(); setStatus();
 }
 
+/* Garante a situação "Outro": cria no Supabase se faltar (bancos antigos),
+   ou adiciona só em memória quando offline / sem permissão. */
+async function garantirSituacaoOutro(){
+  if(state.situacoes.some(s=>s.descricao.toLowerCase().startsWith('outro'))) return;
+  const outro={ descricao:'Outro (descrever na observação)', categoria:'Outros', ordem:16 };
+  if(supaOk() && state.onlineSupa){
+    try{ const rows=await supaPost('situacoes', outro); state.situacoes.push(rows[0]); return; }
+    catch(e){ /* sem permissão ou offline: cai no fallback em memória */ }
+  }
+  state.situacoes.push(Object.assign({ id:'seed-sit-outro' }, outro));
+}
+/* Se o "Outro" for só local (Supabase ainda sem a linha), resolve para um id real antes de registrar. */
+async function resolverSituacaoId(situacaoId){
+  if(!supaOk() || !String(situacaoId).startsWith('seed-sit-')) return situacaoId;
+  try{
+    const found=await supaGet('situacoes?select=id&descricao=ilike.Outro*&limit=1');
+    if(found.length) return found[0].id;
+    const rows=await supaPost('situacoes',{ descricao:'Outro (descrever na observação)', categoria:'Outros', ordem:16 });
+    state.situacoes.push(rows[0]);
+    return rows[0].id;
+  }catch(e){ return situacaoId; }
+}
 async function carregarTudo(){
   try{
     state.turmas=await buscarTurmas();
@@ -402,6 +436,7 @@ async function carregarTudo(){
       await supaGet('situacoes?select=id&limit=1'); state.onlineSupa=true;
     }
   }catch(e){ state.onlineSupa=false; if(!state.turmas.length) state.turmas=seedTurmas(); if(!state.situacoes.length) state.situacoes=seedSituacoes(); }
+  await garantirSituacaoOutro();
   turmaSelect.innerHTML='';
   state.turmas.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.nome; turmaSelect.appendChild(o); });
   state.turmaId=turmaSelect.value||state.turmas[0]?.id||null;
@@ -413,7 +448,7 @@ async function trocarTurma(){
   try{ state.estudantes=await buscarEstudantes(state.turmaId); }
   catch{ state.estudantes=seedEstudantes(state.turmaId); }
   state.estudanteId=null; selAtual.textContent='Nenhum estudante selecionado.';
-  renderEstudantes();
+  renderEstudantes(); renderSituacoes();
 }
 
 async function sincronizar(){
