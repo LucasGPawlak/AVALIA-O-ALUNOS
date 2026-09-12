@@ -103,7 +103,7 @@
       <p class="sub">Preencha e toque em <strong>Iniciar aula</strong>. <span class="status"><span class="dot" id="dot"></span><span id="statusTxt">verificando…</span></span></p>
       <div class="grid2">
         <div class="field"><label for="docente">Docente</label>
-          <select id="docente"><option>Luciano</option><option>Gabriel</option><option>Lucas</option></select>
+          <select id="docente"></select>
         </div>
         <div class="field"><label for="turmaSelect">Turma</label>
           <select id="turmaSelect"><option value="">Carregando…</option></select>
@@ -111,16 +111,7 @@
       </div>
       <div class="grid2">
         <div class="field"><label for="disciplina">Disciplina</label>
-          <select id="disciplina">
-            <option>Programação Back-end</option>
-            <option>Análise e projeto de sistemas</option>
-            <option>Programação Mobile</option>
-            <option>Banco de dados II</option>
-            <option>Ciência de Dados</option>
-            <option>Programação Front-end</option>
-            <option>Introdução a computação</option>
-            <option>Computação Gráfica</option>
-          </select>
+          <select id="disciplina"></select>
         </div>
         <div class="field"><label for="dataAula">Data</label><input id="dataAula" type="date" /></div>
       </div>
@@ -211,8 +202,32 @@
 const SUPABASE_URL = 'SUA_SUPABASE_URL';
 const SUPABASE_ANON_KEY = 'SUA_SUPABASE_ANON_KEY';
 
-const DOCENTES = ['Luciano','Gabriel','Lucas'];
-const DISCIPLINAS = ['Programação Back-end','Análise e projeto de sistemas','Programação Mobile','Banco de dados II','Ciência de Dados','Programação Front-end','Introdução a computação','Computação Gráfica'];
+/* Vínculos docente → turma → disciplina (fonte dos filtros em cascata) */
+const VINCULOS = [
+  ['ADÉLIO','DS1','GEOGRAFIA'],
+  ['ADRIANA','DS1','EDUCAÇÃO FÍSICA'],['ADRIANA','DS2','EDUCAÇÃO FÍSICA'],['ADRIANA','DS3','EDUCAÇÃO FÍSICA'],
+  ['ANA CLAUDIA','DS2','FÍSICA'],['ANA CLAUDIA','DS3','FÍSICA'],
+  ['ANA PAULA','DS2','LÍNGUA PORTUGUESA'],
+  ['ANDRÉ','DS1','ARTES'],
+  ['BRUNO','DS1','LÍNGUA INGLESA'],['BRUNO','DS2','LÍNGUA INGLESA'],
+  ['FABIANA','DS2','EDUCAÇÃO FINANCEIRA'],['FABIANA','DS3','EDUCAÇÃO FINANCEIRA'],
+  ['GABRIEL ELIENAI','DS1','ANÁLISE E MÉTODO PARA SISTEMAS'],['GABRIEL ELIENAI','DS2','PROGRAMAÇÃO FRONT-END'],['GABRIEL ELIENAI','DS2','INOVAÇÃO TEC E EMPREENDEDORISMO'],['GABRIEL ELIENAI','DS3','PROG. E DESENVOLVIMENTO DE SISTEMAS'],
+  ['GABRIELE','DS3','COMPUTAÇÃO GRÁFICA'],
+  ['JAIR','DS3','MATEMÁTICA'],
+  ['LUCAS PAWLAK','DS1','INTRODUÇÃO À COMPUTAÇÃO'],['LUCAS PAWLAK','DS1','BANCO DE DADOS I'],['LUCAS PAWLAK','DS2','PROGRAMAÇÃO BACK-END I'],['LUCAS PAWLAK','DS2','BANCO DE DADOS II'],['LUCAS PAWLAK','DS3','PROGRAMAÇÃO BACK-END II'],['LUCAS PAWLAK','DS3','ANÁLISE E PROJETO DE SISTEMAS'],
+  ['LUCIANO','DS1','LÓGICA COMPUTACIONAL'],['LUCIANO','DS3','BANCO DE DADOS III'],['LUCIANO','DS3','CIÊNCIA DE DADOS'],['LUCIANO','DS3','PROGRAMAÇÃO MOBILE'],
+  ['MAICON','DS1','FILOSOFIA'],
+  ['MARCELO MELLO','DS1','LÍNGUA PORTUGUESA'],
+  ['MARCELO VELLA','DS1','QUÍMICA'],
+  ['MARGARETE','DS2','SOCIOLOGIA'],
+  ['MULLER','DS1','MATEMÁTICA'],
+  ['SERGIO','DS1','BIOLOGIA'],
+  ['TALITA DIAS','DS2','MATEMÁTICA'],
+  ['VALDECIR','DS2','HISTÓRIA']
+];
+function docentesUnicos(){ return [...new Set(VINCULOS.map(v=>v[0]))].sort((a,b)=>a.localeCompare(b,'pt-BR')); }
+function turmasDoDocente(doc){ const t=[]; VINCULOS.forEach(v=>{ if(v[0]===doc && !t.includes(v[1])) t.push(v[1]); }); return t; }
+function disciplinasDe(doc,turma){ return VINCULOS.filter(v=>v[0]===doc&&v[1]===turma).map(v=>v[2]); }
 
 const state = {
   cfg: {
@@ -332,14 +347,15 @@ function seedSituacoes() {
   return S.map((s,i)=>({ id:'seed-sit-'+(i+1), descricao:s[1], categoria:s[0], ordem:s[2] }));
 }
 function seedTurmas() {
-  return [{ id:'seed-ds3', nome:'DS3', ano:2026 }, { id:'seed-ds2', nome:'DS2', ano:2026 }];
+  return [{ id:'seed-ds1', nome:'DS1', ano:2026 }, { id:'seed-ds2', nome:'DS2', ano:2026 }, { id:'seed-ds3', nome:'DS3', ano:2026 }];
 }
+const EST_DS1 = ['ALANA ARAUJO SANTOS DIAS','ANA CLARA SORIANI NUNES','ARTHUR RIBEIRO HAILLER','BERNARDO CARVALHO BUSQUETE SENIUK','CARLOS HENRIQUE ALVES DOS SANTOS','CAUA DO ROSARIO SIQUEIRA XAVIER','DAVIH MARTINS BARROS','GABRIEL DA COSTA BARBOSA','GUSTAVO HENRIQUE DOS SANTOS ALVES','HEITOR BARROS MARCOS','HELAMÃ FIRMO DA SILVA MOREIRA','HELOISA EURICH DE SOUZA IZAIAS','HIGOR DO ESPIRITO SANTO PEREIRA','JEAN CARLOS RODRIGUES DOS SANTOS FILHO','JOÃO GABRIEL NASCIMENTO SOUZA','JOAO VICTOR CARDOSO BORBA','JOAQUIM LABORNE PEDRO','LAVINIA HELENA DANA SILVA ALVES','LUCAS GUSTAVO RAMOS AMORIM','MATHEUS SCOMAÇÃO CAMPREGHER','MAURICIO MARISTANY JUNIOR','NATHAN HENRIQUE SILVA CORREA','PAULO KALED FERNANDES VIDAL','PEDRO DAVI DOMINGUES DE SOUZA','PEDRO HENRIQUE SANTOS DE SOUSA','PEDRO IZIDORO NETO','PITTER VERDIANO DIAS','RAFAEL KISS FORTUNATO','RODRIGO NERIS CAVALCANTI FILHO','ROGERSON LUIZ DOS SANTOS','RYAN CORREA BARBOZA','RYCHARD LUIZ DE SOUZA','SERGIO KUBA NETO','TALES YAN SIQUEIRA POLIDORO','VICTOR OTAVIO VICTAL BORBA'];
 const EST_DS3 = ['ADRIAN KURTS PEREIRA DE OLIVEIRA','ANDRE ROBERTO MARQUES GUIMARAES JUNIOR','CARLA KATHIELY DOS SANTOS SOUZA','DÂMARIS MODESTO RIBEIRO','DANIEL ARAUJO DOS SANTOS','DANIEL AUGUSTO MACHADO MARTINS','DANIEL CARVALHO DE PAULO','DANIELY FERNANDES TIXILISKI','DAVI SOUZA DO CARMO','DÉRICK RODOLFO LAGOS TORRES','EDUARDO SZCREPANSKI DE ALMEIDA NIZ','ENZO DOS SANTOS SERAFIM','FELIPE MENDES ALVES','GIOVANNY DA SILVA CABRAL','GUILHERME ALEXANDRE BONAFINI PEREIRA','HENZO HENRIQUE SANTOS PINTO','JHONATAN ALVES BRONDANI','JHONNY LEENDER GONCALVES ALVES','JOÃO PEDRO HENRIQUE BERNARDO','JÔNATAS SOUZA DA SILVA PEREIRA','JULIA ARTIGAS DE CASTRO','JÚLIA DA SILVA VIEIRA','KARINE RODRIGUES DE OLIVEIRA','LARA AMANDA LOPES DO ROSARIO','LARISSA NAGEL ALVES','LETICIA CANDIDO MENDES','LUAN FELIPE RUSSI MACHADO','LUAN GABRIEL DE LIMA BORGES','LUCAS MARINHO DE FREITAS','LUCAS MATEUS DOMINICO','LUKAS EDUARDO ZEMZISKY SIMPLICIO DA SILVA','MELANY NICOLE COSTA','NATHAN RAMOS PINHEIRO DA SILVA','NÍVEA SUZANA DE VRIJ XAVIER','PAULO AFONSO NEUMANN BAPTISTEL ALVES','PIERRE PEREIRA WAZONKOSKI DELPHIM','STEFFANY ELOISE DE SOUZA DIAS','TIAGO MAHMOUD SAID'];
 const EST_DS2 = ['AILTON CORADASSI VIEIRA','ANA BEATRIZ PINTO MOREIRA','ANDRE PYETRO GOMES BATISTA','ANDRIELLYN MARTINS OLIVEIRA DOS SANTOS','ANNA BIATRICE PONTES SPANIER POLI','ARTHUR FERNANDES RAMOS','BENICIO DOS SANTOS DA SILVA','DÃ GABRIEL SILVA VIDAL','ELCIO CRUZ DA VEIGA','ENTHONY GABRIEL ALVES DOS SANTOS','FELIPE FELIX MENDES','GABRIEL GIACOMIN SALVADOR','GIOVANA JASCESKI CAVALHEIRO','HENRY MATSUDA','JEAN VICTOR LAGOS MARCIO','JOÃO HENRIQUE BARÃO NASCIMENTO','JOAO PEDRO SANTOS PADILHA DE ANDRADE','JONAS AUGUSTO TREFELES DOS SANTOS','KAUA HENRIQUE FOSSILE RAMOS','LUAN RAFAEL SOUZA DE PAULA','LUCAS PAREDES DE CAMPOS','MARIA EDUARDA RODRIGUES COSTA','MARIA FERNANDA DE GOIS FERREIRA FONTES','MICKAEL VIANA DE CASTRO','MIGUEL DO CARMO LUZ','MIGUEL NASCIMENTO SILVA','MIRELLA FERNANDA BUENO SIQUEIRA','NATHAN CEZAR ALVES SANCHES','NYCOLAS ANDRÉ MENDES SANTANA','PAULO CESAR AMORIM FILHO','RAFAEL NASCIMENTO SILVA','RENATO YUDY AGOSTINHO DE ANDRADE','RUAN PHELIPE BARCELOS ELESIS','RUBYA VITORIA GONCALVES','TEODORO KREMER SERAFIM','THOMAS FELIPE OLIVEIRA THOME','VICTÓRIA CRISTINE DOS SANTOS','VINICIUS SANTANA DOS SANTOS','ALESSANDRO SANTIAGO DOS SANTOS SILVA JUNIOR'];
 function seedEstudantes(turmaId) {
   const turmaNome = (state.turmas.find(t=>t.id===turmaId)||{}).nome || '';
-  const isDS2 = turmaId==='seed-ds2' || turmaNome==='DS2';
-  const lista = isDS2 ? EST_DS2 : EST_DS3;
+  const lista = (turmaId==='seed-ds1'||turmaNome==='DS1') ? EST_DS1
+    : (turmaId==='seed-ds2'||turmaNome==='DS2') ? EST_DS2 : EST_DS3;
   return lista.map((n,i)=>({ id:`${turmaId}-e${i+1}`, nome: n, turma_id: turmaId }));
 }
 function filaLocalAll() { try { return JSON.parse(localStorage.getItem('rr_registros')||'[]'); } catch { return []; } }
@@ -552,6 +568,34 @@ async function resolverSituacaoId(situacaoId){
     return rows[0].id;
   }catch(e){ return situacaoId; }
 }
+/* Cascata: docente → turmas do docente → disciplinas do docente na turma.
+   Turmas vindas do Supabase são filtradas pelos vínculos; no modo local,
+   usam-se as turmas-semente correspondentes. */
+function popularDocentes(){
+  const sel=$('docente');
+  sel.innerHTML='';
+  docentesUnicos().forEach(d=>{ const o=document.createElement('option'); o.value=d; o.textContent=d; sel.appendChild(o); });
+  refreshTurmas();
+}
+function turmasDisponiveis(doc){
+  const nomes=turmasDoDocente(doc);
+  return state.turmas.filter(t=>nomes.includes(t.nome));
+}
+function refreshTurmas(){
+  const doc=$('docente').value;
+  const disp=turmasDisponiveis(doc);
+  turmaSelect.innerHTML='';
+  disp.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.nome; turmaSelect.appendChild(o); });
+  state.turmaId=turmaSelect.value||disp[0]?.id||null;
+  refreshDisciplinas();
+}
+function refreshDisciplinas(){
+  const doc=$('docente').value;
+  const turmaNome=(state.turmas.find(t=>t.id===state.turmaId)||{}).nome||'';
+  const disc=$('disciplina');
+  disc.innerHTML='';
+  disciplinasDe(doc,turmaNome).forEach(d=>{ const o=document.createElement('option'); o.value=d; o.textContent=d; disc.appendChild(o); });
+}
 async function carregarTudo(){
   try{
     state.turmas=await buscarTurmas();
@@ -559,9 +603,7 @@ async function carregarTudo(){
     if(supaOk()){ await supaGet('situacoes?select=id&limit=1'); state.onlineSupa=true; }
   }catch(e){ state.onlineSupa=false; if(!state.turmas.length) state.turmas=seedTurmas(); if(!state.situacoes.length) state.situacoes=seedSituacoes(); }
   await garantirSituacaoOutro();
-  turmaSelect.innerHTML='';
-  state.turmas.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.nome; turmaSelect.appendChild(o); });
-  state.turmaId=turmaSelect.value||state.turmas[0]?.id||null;
+  popularDocentes();
   setStatus();
 }
 async function sincronizar(){
@@ -583,7 +625,8 @@ async function sincronizar(){
 }
 
 /* ============ Eventos ============ */
-turmaSelect.onchange=()=>{ state.turmaId=turmaSelect.value; };
+$('docente').onchange=()=>{ refreshTurmas(); };
+turmaSelect.onchange=()=>{ state.turmaId=turmaSelect.value; refreshDisciplinas(); };
 busca.oninput=renderAlunos;
 $('emailEquipe').onchange=e=>localStorage.setItem('rr_email_equipe', e.target.value.trim());
 $('btnAula').onclick=async()=>{
