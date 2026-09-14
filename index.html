@@ -206,6 +206,8 @@
    ============================================================ */
 const SUPABASE_URL = 'SUA_SUPABASE_URL';
 const SUPABASE_ANON_KEY = 'SUA_SUPABASE_ANON_KEY';
+/* Web App Google Sheets padrão (pode ser trocada na ⚙️, que prevalece). */
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbysSWdp23iVYpaGjWlUr1tcQoXQg6BcHQNx-htKv-syX_9LBsegEGVyAG5RH964rizuow/exec';
 
 /* Vínculos docente → turma → disciplina (fonte dos filtros em cascata) */
 const VINCULOS = [
@@ -575,7 +577,7 @@ function baixarCSV(){
 async function salvarSheets(){
   if(!state.aulaId){ toast('Inicie uma aula primeiro'); return; }
   if(!state.registros.length){ toast('Nenhum registro nesta aula'); return; }
-  const url=(localStorage.getItem('rr_sheets_url')||'').trim();
+  const url=(localStorage.getItem('rr_sheets_url')||SHEETS_URL).trim();
   if(!url){ toast('Cole a URL do Web App na ⚙️ da tela inicial.'); return; }
   const btn=$('btnSheets'); btn.disabled=true;
   try{
@@ -734,7 +736,7 @@ $('dataAula').value=new Date().toISOString().slice(0,10);
 $('emailEquipe').value=localStorage.getItem('rr_email_equipe')||'';
 if(state.cfg.url) $('cfgUrl').value=state.cfg.url;
 if(state.cfg.key) $('cfgKey').value=state.cfg.key;
-$('cfgSheets').value=localStorage.getItem('rr_sheets_url')||'';
+$('cfgSheets').value=localStorage.getItem('rr_sheets_url')||SHEETS_URL;
 carregarTudo();
 </script>
 </body>
