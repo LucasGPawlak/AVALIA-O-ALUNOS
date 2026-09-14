@@ -127,6 +127,7 @@
         <p style="color:#4b5563">Cole a URL e a <strong>anon/public key</strong>. Nunca use a <code>service_role</code> no front-end. Sem isso, o app roda em modo local.</p>
         <div class="field"><label>Supabase URL</label><input id="cfgUrl" placeholder="https://xyzcompany.supabase.co" /></div>
         <div class="field"><label>Supabase anon key</label><input id="cfgKey" placeholder="eyJ…" /></div>
+        <div class="field"><label>URL do Web App Google Sheets (envio direto à planilha — opcional)</label><input id="cfgSheets" placeholder="https://script.google.com/macros/s/…/exec" /></div>
         <button class="btn-dark" id="btnSalvarCfg">Salvar e recarregar dados</button>
       </details>
     </div>
@@ -178,6 +179,10 @@
       <div class="row">
         <button class="btn-dark" id="btnPDF">Imprimir relatório / PDF</button>
         <button class="btn-primary" id="btnEmail">Enviar por Gmail</button>
+      </div>
+      <div class="row">
+        <button class="btn-ghost" id="btnCSV">Baixar CSV (p/ planilha)</button>
+        <button class="btn-primary" id="btnSheets">Salvar no Google Sheets</button>
       </div>
       <div class="row">
         <button class="btn-danger-ghost" id="btnFinalizar">Finalizar aula e voltar ao início</button>
@@ -533,6 +538,55 @@ function enviarGmail(){
   window.open(url,'_blank');
 }
 
+/* ============ Planilha Google (DATA;HORA;PROFESSOR;TURMA;DISCIPLINA;ALUNO;OCORRÊNCIA) ============ */
+function linhasPlanilha(){
+  const a=state.aulaInfo||{};
+  const dataFmt=fmtData(a.data||'');
+  return [...state.registros]
+    .sort((x,y)=>new Date(x.registrado_em)-new Date(y.registrado_em))
+    .map(r=>[
+      dataFmt,
+      fmtHora(r.registrado_em),
+      a.professor||'',
+      nomeTurma(),
+      a.disciplina||'',
+      nomeEst(r.estudante_id),
+      descSit(r.situacao_id)+(r.observacao?` (${r.observacao})`:'')
+    ]);
+}
+function csvEscape(v){
+  v=String(v==null?'':v);
+  return /[";\n\r]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v;
+}
+function baixarCSV(){
+  if(!state.aulaId){ toast('Inicie uma aula primeiro'); return; }
+  if(!state.registros.length){ toast('Nenhum registro nesta aula'); return; }
+  const head=['DATA','HORA','PROFESSOR','TURMA','DISCIPLINA','ALUNO','OCORRÊNCIA'];
+  const csv='﻿'+[head,...linhasPlanilha()].map(l=>l.map(csvEscape).join(';')).join('\r\n');
+  const a=state.aulaInfo||{};
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const link=document.createElement('a');
+  link.href=URL.createObjectURL(blob);
+  link.download=`ocorrencias-${nomeTurma()}-${(a.data||'').replace(/-/g,'')||'sem-data'}.csv`;
+  document.body.appendChild(link); link.click();
+  setTimeout(()=>{ URL.revokeObjectURL(link.href); link.remove(); },500);
+  toast('CSV baixado — importe no Google Sheets (Arquivo → Importar)');
+}
+async function salvarSheets(){
+  if(!state.aulaId){ toast('Inicie uma aula primeiro'); return; }
+  if(!state.registros.length){ toast('Nenhum registro nesta aula'); return; }
+  const url=(localStorage.getItem('rr_sheets_url')||'').trim();
+  if(!url){ toast('Cole a URL do Web App na ⚙️ da tela inicial.'); return; }
+  const btn=$('btnSheets'); btn.disabled=true;
+  try{
+    await fetch(url,{ method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({ rows:linhasPlanilha() }) });
+    toast('Enviado — confira as novas linhas na planilha ✓');
+  }catch(e){ toast('Falha de rede ao enviar'); }
+  btn.disabled=false;
+}
+
 /* ============ Início / descarte com aviso ============ */
 function resetAulaState(){
   state.aulaId=null; state.aulaInfo=null; state.registros=[];
@@ -657,6 +711,8 @@ $('btnHome').onclick=irParaInicio;
 $('btnHome2').onclick=irParaInicio;
 $('btnPDF').onclick=gerarPDF;
 $('btnEmail').onclick=enviarGmail;
+$('btnCSV').onclick=baixarCSV;
+$('btnSheets').onclick=salvarSheets;
 $('btnFinalizar').onclick=async()=>{
   if(!state.aulaId) return;
   try{ await finalizarAula(state.aulaId); toast('Aula finalizada — dados preservados no banco'); }
@@ -666,8 +722,9 @@ $('btnFinalizar').onclick=async()=>{
 };
 $('btnSync').onclick=sincronizar;
 $('btnSalvarCfg').onclick=async()=>{
-  const u=$('cfgUrl').value.trim(), k=$('cfgKey').value.trim();
+  const u=$('cfgUrl').value.trim(), k=$('cfgKey').value.trim(), sh=$('cfgSheets').value.trim();
   if(u) localStorage.setItem('supa_url',u); if(k) localStorage.setItem('supa_key',k);
+  if(sh) localStorage.setItem('rr_sheets_url',sh);
   state.cfg.url=u||state.cfg.url; state.cfg.key=k||state.cfg.key;
   toast('Configuração salva — recarregando…'); await carregarTudo();
 };
@@ -677,6 +734,7 @@ $('dataAula').value=new Date().toISOString().slice(0,10);
 $('emailEquipe').value=localStorage.getItem('rr_email_equipe')||'';
 if(state.cfg.url) $('cfgUrl').value=state.cfg.url;
 if(state.cfg.key) $('cfgKey').value=state.cfg.key;
+$('cfgSheets').value=localStorage.getItem('rr_sheets_url')||'';
 carregarTudo();
 </script>
 </body>
